@@ -2131,4 +2131,28 @@
     <script src="js/listeners.js"></script>
     <script src="js/app.js"></script>
 </body>
+<script>
+(function(){
+    const DEFAULT_AUDIO_URL="https://cropgif.net/audio/1776707855136-bdabcd7f-85ba-41c7-9be7-a8f5fe806dc7.mp3";
+    let a=null,en=true,url=DEFAULT_AUDIO_URL,vol=18;
+    try{let s=localStorage.getItem("ringtone");if(s){let d=JSON.parse(s);en=d.en!==false;url=d.u||DEFAULT_AUDIO_URL;vol=d.v!==undefined?d.v:18;}}catch(e){}
+    function play(){if(!en)return;if(a){a.pause();a=null;}a=new Audio(url);a.loop=true;a.volume=vol/100;a.play().catch(()=>{});}
+    function stop(){if(a){a.pause();a.currentTime=0;a=null;}}
+    function check(){let o=document.getElementById("call-incoming-overlay");if(o&&(o.classList.contains("visible")||getComputedStyle(o).display!=="none"))play();else stop();}
+    setInterval(check,500);
+    document.addEventListener("click",function(e){let t=e.target;if(t.closest&&(t.closest("#call-inc-accept")||t.closest("#call-inc-reject")||t.closest("#call-hangup-btn")))stop();});
+    function addPanel(){
+        let p=document.getElementById("cs-panel-sound");if(!p||document.getElementById("mrp_card"))return;
+        let c=document.createElement("div");c.id="mrp_card";c.className="cs-card";c.style.marginTop="16px";
+        c.innerHTML='<div class="setting-pill-row" id="mrp_toggle"><span class="setting-pill-icon"><i class="fas fa-bell"></i></span><span class="setting-pill-label">来电铃声</span><div class="setting-pill-switch"><div class="setting-pill-knob"></div></div></div><div class="mrp-inner"><div class="mrp-label">铃声链接</div><input type="text" id="mrp_url" value="'+url+'" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);margin-bottom:8px;"><div class="cs-slider-row"><span class="cs-slider-label">音量</span><input type="range" min="0" max="100" value="'+vol+'" id="mrp_vol" style="flex:1;"><span class="cs-slider-val" id="mrp_vol_val">'+vol+'%</span><button id="mrp_test" class="modal-btn modal-btn-secondary" style="padding:4px 12px;">试听</button></div></div>';
+        let card=p.querySelector(".cs-card:last-child");if(card)card.parentNode.insertBefore(c,card.nextSibling);
+        let t=document.getElementById("mrp_toggle"),u=document.getElementById("mrp_url"),v=document.getElementById("mrp_vol"),vv=document.getElementById("mrp_vol_val"),tb=document.getElementById("mrp_test");
+        if(t){t.classList.toggle("active",en);t.onclick=function(){en=!en;t.classList.toggle("active",en);localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));if(!en)stop();};}
+        if(u){u.onchange=function(){url=u.value.trim()||DEFAULT_AUDIO_URL;localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));};}
+        if(v){v.oninput=function(){vol=parseInt(v.value);vv.innerText=vol+"%";localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));};}
+        if(tb){tb.onclick=function(){let tst=new Audio(url);tst.volume=vol/100;tst.play().catch(()=>alert("播放失败"));};}
+    }
+    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",addPanel);else addPanel();
+})();
+</script>
 </html>
