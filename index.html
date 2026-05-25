@@ -2133,44 +2133,124 @@
 </body>
 <script>
 (function(){
-    const DEFAULT_AUDIO_URL="https://cropgif.net/audio/1776707855136-bdabcd7f-85ba-41c7-9be7-a8f5fe806dc7.mp3";
-    let a=null,en=true,url=DEFAULT_AUDIO_URL,vol=18;
-    try{let s=localStorage.getItem("ringtone");if(s){let d=JSON.parse(s);en=d.en!==false;url=d.u||DEFAULT_AUDIO_URL;vol=d.v!==undefined?d.v:18;}}catch(e){}
-    function play(){if(!en)return;if(a){a.pause();a=null;}a=new Audio(url);a.loop=true;a.volume=vol/100;a.play().catch(()=>{});}
-    function stop(){if(a){a.pause();a.currentTime=0;a=null;}}
+    if(window.__ringtoneFix) return;
+    window.__ringtoneFix = true;
     
-    // 监听页面是否出现"邀请您进行视频通话"这几个字
-    function checkByText(){
-        let bodyText = document.body.innerText;
-        if(bodyText.includes("邀请您进行视频通话") && bodyText.includes("接听")){
-            play();
-        }else{
-            stop();
+    const DEFAULT_AUDIO_URL="https://cropgif.net/audio/1776707855136-bdabcd7f-85ba-41c7-9be7-a8f5fe806dc7.mp3";
+    let audio = null;
+    let enabled = true;
+    let ringtoneUrl = DEFAULT_AUDIO_URL;
+    let volume = 18;
+    
+    try {
+        let saved = localStorage.getItem("ringtone");
+        if(saved) {
+            let data = JSON.parse(saved);
+            enabled = data.en !== false;
+            ringtoneUrl = data.u || DEFAULT_AUDIO_URL;
+            volume = data.v !== undefined ? data.v : 18;
+        }
+    } catch(e) {}
+    
+    function playRingtone() {
+        if(!enabled) return;
+        if(audio) {
+            audio.pause();
+            audio = null;
+        }
+        audio = new Audio(ringtoneUrl);
+        audio.loop = true;
+        audio.volume = volume / 100;
+        audio.play().catch(()=>{});
+    }
+    
+    function stopRingtone() {
+        if(audio) {
+            audio.pause();
+            audio.currentTime = 0;
+            audio = null;
         }
     }
     
-    setInterval(checkByText, 500);
+    function checkIncoming() {
+        if(!enabled) return;
+        let bodyText = document.body ? document.body.innerText : "";
+        if(bodyText.includes("邀请您进行视频通话") && bodyText.includes("接听")) {
+            playRingtone();
+        } else {
+            stopRingtone();
+        }
+    }
+    
+    // 每0.5秒检测一次
+    setInterval(checkIncoming, 500);
     
     // 点击接听/拒绝时停止铃声
-    document.addEventListener("click",function(e){
-        let t=e.target;
-        if((t.innerText&&t.innerText.includes("接听"))||(t.innerText&&t.innerText.includes("拒绝"))){
-            setTimeout(stop,100);
+    document.addEventListener("click", function(e) {
+        let text = e.target && e.target.innerText ? e.target.innerText : "";
+        if(text.includes("接听") || text.includes("拒绝")) {
+            setTimeout(stopRingtone, 100);
         }
     });
     
-    function addPanel(){
-        let p=document.getElementById("cs-panel-sound");if(!p||document.getElementById("mrp_card"))return;
-        let c=document.createElement("div");c.id="mrp_card";c.className="cs-card";c.style.marginTop="16px";
-        c.innerHTML='<div class="setting-pill-row" id="mrp_toggle"><span class="setting-pill-icon"><i class="fas fa-bell"></i></span><span class="setting-pill-label">来电铃声</span><div class="setting-pill-switch"><div class="setting-pill-knob"></div></div></div><div class="mrp-inner"><div class="mrp-label">铃声链接</div><input type="text" id="mrp_url" value="'+url+'" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);margin-bottom:8px;"><div class="cs-slider-row"><span class="cs-slider-label">音量</span><input type="range" min="0" max="100" value="'+vol+'" id="mrp_vol" style="flex:1;"><span class="cs-slider-val" id="mrp_vol_val">'+vol+'%</span><button id="mrp_test" class="modal-btn modal-btn-secondary" style="padding:4px 12px;">试听</button></div></div>';
-        let card=p.querySelector(".cs-card:last-child");if(card)card.parentNode.insertBefore(c,card.nextSibling);
-        let t=document.getElementById("mrp_toggle"),u=document.getElementById("mrp_url"),v=document.getElementById("mrp_vol"),vv=document.getElementById("mrp_vol_val"),tb=document.getElementById("mrp_test");
-        if(t){t.classList.toggle("active",en);t.onclick=function(){en=!en;t.classList.toggle("active",en);localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));if(!en)stop();};}
-        if(u){u.onchange=function(){url=u.value.trim()||DEFAULT_AUDIO_URL;localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));};}
-        if(v){v.oninput=function(){vol=parseInt(v.value);vv.innerText=vol+"%";localStorage.setItem("ringtone",JSON.stringify({en:en,u:url,v:vol}));};}
-        if(tb){tb.onclick=function(){let tst=new Audio(url);tst.volume=vol/100;tst.play().catch(()=>alert("播放失败"));};}
+    // 添加设置面板（只在页面完全加载后执行一次）
+    function addSettingsPanel() {
+        if(document.getElementById("mrp_panel")) return;
+        let soundPanel = document.getElementById("cs-panel-sound");
+        if(!soundPanel) return;
+        
+        let panel = document.createElement("div");
+        panel.id = "mrp_panel";
+        panel.className = "cs-card";
+        panel.style.marginTop = "16px";
+        panel.innerHTML = '<div class="setting-pill-row" id="mrp_toggle"><span class="setting-pill-icon"><i class="fas fa-bell"></i></span><span class="setting-pill-label">来电铃声</span><div class="setting-pill-switch"><div class="setting-pill-knob"></div></div></div><div class="mrp-inner"><div class="mrp-label">铃声链接</div><input type="text" id="mrp_url" value="'+ringtoneUrl+'" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);margin-bottom:8px;"><div class="cs-slider-row"><span class="cs-slider-label">音量</span><input type="range" min="0" max="100" value="'+volume+'" id="mrp_vol" style="flex:1;"><span class="cs-slider-val" id="mrp_vol_val">'+volume+'%</span><button id="mrp_test" class="modal-btn modal-btn-secondary" style="padding:4px 12px;">试听</button></div></div>';
+        
+        let lastCard = soundPanel.querySelector(".cs-card:last-child");
+        if(lastCard) lastCard.parentNode.insertBefore(panel, lastCard.nextSibling);
+        
+        let toggle = document.getElementById("mrp_toggle");
+        let urlInput = document.getElementById("mrp_url");
+        let volSlider = document.getElementById("mrp_vol");
+        let volVal = document.getElementById("mrp_vol_val");
+        let testBtn = document.getElementById("mrp_test");
+        
+        if(toggle) {
+            if(enabled) toggle.classList.add("active");
+            toggle.onclick = function() {
+                enabled = !enabled;
+                if(enabled) toggle.classList.add("active");
+                else toggle.classList.remove("active");
+                localStorage.setItem("ringtone", JSON.stringify({en:enabled, u:ringtoneUrl, v:volume}));
+                if(!enabled) stopRingtone();
+            };
+        }
+        if(urlInput) {
+            urlInput.onchange = function() {
+                ringtoneUrl = urlInput.value.trim() || DEFAULT_AUDIO_URL;
+                localStorage.setItem("ringtone", JSON.stringify({en:enabled, u:ringtoneUrl, v:volume}));
+            };
+        }
+        if(volSlider) {
+            volSlider.oninput = function() {
+                volume = parseInt(volSlider.value);
+                volVal.innerText = volume + "%";
+                localStorage.setItem("ringtone", JSON.stringify({en:enabled, u:ringtoneUrl, v:volume}));
+            };
+        }
+        if(testBtn) {
+            testBtn.onclick = function() {
+                let testAudio = new Audio(ringtoneUrl);
+                testAudio.volume = volume / 100;
+                testAudio.play().catch(()=>alert("播放失败，检查链接"));
+            };
+        }
     }
-    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",addPanel);else addPanel();
+    
+    if(document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", addSettingsPanel);
+    } else {
+        addSettingsPanel();
+    }
 })();
 </script>
 </html>
