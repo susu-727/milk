@@ -2138,9 +2138,27 @@
     try{let s=localStorage.getItem("ringtone");if(s){let d=JSON.parse(s);en=d.en!==false;url=d.u||DEFAULT_AUDIO_URL;vol=d.v!==undefined?d.v:18;}}catch(e){}
     function play(){if(!en)return;if(a){a.pause();a=null;}a=new Audio(url);a.loop=true;a.volume=vol/100;a.play().catch(()=>{});}
     function stop(){if(a){a.pause();a.currentTime=0;a=null;}}
-    function check(){let o=document.getElementById("call-incoming-overlay");if(o&&(o.classList.contains("visible")||getComputedStyle(o).display!=="none"))play();else stop();}
-    setInterval(check,500);
-    document.addEventListener("click",function(e){let t=e.target;if(t.closest&&(t.closest("#call-inc-accept")||t.closest("#call-inc-reject")||t.closest("#call-hangup-btn")))stop();});
+    
+    // 监听页面是否出现"邀请您进行视频通话"这几个字
+    function checkByText(){
+        let bodyText = document.body.innerText;
+        if(bodyText.includes("邀请您进行视频通话") && bodyText.includes("接听")){
+            play();
+        }else{
+            stop();
+        }
+    }
+    
+    setInterval(checkByText, 500);
+    
+    // 点击接听/拒绝时停止铃声
+    document.addEventListener("click",function(e){
+        let t=e.target;
+        if((t.innerText&&t.innerText.includes("接听"))||(t.innerText&&t.innerText.includes("拒绝"))){
+            setTimeout(stop,100);
+        }
+    });
+    
     function addPanel(){
         let p=document.getElementById("cs-panel-sound");if(!p||document.getElementById("mrp_card"))return;
         let c=document.createElement("div");c.id="mrp_card";c.className="cs-card";c.style.marginTop="16px";
